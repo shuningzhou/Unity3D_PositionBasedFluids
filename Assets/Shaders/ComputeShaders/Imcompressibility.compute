@@ -1,0 +1,331 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CalLambda
+#pragma kernel CalPositionCorrection
+#pragma kernel UpdatePredictedPos
+
+#define THREAD_GROUP_X 128
+
+#define ONE_OVER_SQRT_OF_3 0.577350f
+#define EPSILON 0.0001f
+#define MAX_POSITION_CORRECTION float3(0.1f,0.1f,0.1f)
+
+struct Particle
+{
+	float4 position;
+	float4 velocity;
+	float4 predictedPos;
+	uint id;
+	uint cellId;
+	float pad;
+	float pad2;
+};
+
+RWStructuredBuffer<Particle> _ParticleBuffer_RW;
+//read only
+StructuredBuffer<uint> _GridCounter_R;   //size is the num of grid cell
+StructuredBuffer<uint> _GridPrefixSum_R; //size is the num of grid cell
+
+RWStructuredBuffer<float4> _PosCorr_RW;
+RWStructuredBuffer<float> _Lambda_RW;
+RWStructuredBuffer<float> _Density_RW;
+
+cbuffer MyConstants
+{
+	float _KRAD;
+	float _REST_DENSITY;
+	float _RELXATION_PARAM;
+
+	int _numGridX;
+	int _numGridY;
+	int _numGridZ;
+	float3 _gridOrigin;
+	float _cellSize;
+
+	float3 _boundBoxCenter;
+	float3 _boundBoxExtent;
+
+	float _Poly6Const;
+	float _GradSpikyConst;
+
+	float _ptlMass;
+};
+
+//auxiliary function ----------------------------------------------------------------------------
+float Poly6(float distanceIJ_length)
+{
+	float h2r2 = pow(_KRAD, 2.0f) - pow(distanceIJ_length, 2.0f);
+
+	if (h2r2 < EPSILON)
+	{
+		return 0.0f;
+	}
+
+	return _Poly6Const * pow(h2r2, 3.0f);
+}
+
+float3 GradientSpiky(float3 distanceIJ)
+{
+	float r = length(distanceIJ);
+
+	if (r <= EPSILON)
+	{
+		return float3(0, 0, 0);
+	}
+
+	float constant = (_GradSpikyConst * pow(_KRAD - r, 2.0f)) / r;
+
+	return float3(constant * distanceIJ.x, constant * distanceIJ.y, constant * distanceIJ.z);
+}
+
+float DensityConstraint(uint index, int nCellList[27])
+{
+	float density = 0;
+	float distance;
+
+	float3 ptlPos = _ParticleBuffer_RW[index].predictedPos.xyz;
+
+	int counter = 0;
+	uint cellNum = _numGridX * _numGridY * _numGridZ;
+	int i;
+	//for all "neighbour" cells do
+	[unroll]for (i = 0; i < 27; i++)
+	{
+		//discard any invalid cell
+		uint cellId = nCellList[i];
+		if (cellId >= 0 && cellId < cellNum)
+		{
+			uint nid;
+			for (nid = _GridPrefixSum_R[cellId]; nid < (_GridPrefixSum_R[cellId] + _GridCounter_R[cellId]); nid++)
+			{
+				distance = length(ptlPos - _ParticleBuffer_RW[nid].predictedPos.xyz);
+
+				//only particles in the search space will be calculated
+				if (distance <= _KRAD)
+				{
+					density = density + _ptlMass * Poly6(distance);
+				}			
+			}
+		}
+	}
+
+	//lack of boundary density contribution
+
+	_Density_RW[index] = density;
+
+	return ((density / _REST_DENSITY) - 1);//counter;//density;//((density / _REST_DENSITY) - 1);
+}
+
+float Lambda(uint ptlId, float Ci, int nCellList[27])
+{
+	float sumGradientCi2 = 0;
+	float distance;
+
+	//accumulator for k == i
+	float3 gradI = float3(0,0,0);
+	float3 ptlPos = _ParticleBuffer_RW[ptlId].predictedPos.xyz;
+	float3 nPos;
+
+	float3 tempGrad = float3(0,0,0);
+
+	uint cellNum = _numGridX * _numGridY * _numGridZ;
+	//k == j
+	int i;
+	[unroll]for (i = 0; i < 27; i++)
+	{
+		//discard any invalid cell
+		uint cellId = nCellList[i];
+		if (cellId >= 0 && cellId < cellNum)
+		{
+			uint nid;
+			for (nid = _GridPrefixSum_R[cellId]; nid < (_GridPrefixSum_R[cellId] + _GridCounter_R[cellId]); nid++)
+			{
+				nPos = _ParticleBuffer_RW[nid].predictedPos.xyz;
+				distance = length(ptlPos - nPos);
+
+				//only particles in the search space will be calculated
+				//neighbours' sum, as mentioned in paper
+				if ((distance <= _KRAD) && (nid != ptlId))
+				{
+					tempGrad = GradientSpiky(ptlPos - nPos);
+
+					sumGradientCi2 = sumGradientCi2 +
+						(tempGrad.x * tempGrad.x +
+						 tempGrad.y * tempGrad.y +
+						 tempGrad.z * tempGrad.z);
+
+					gradI = gradI + tempGrad;
+				}
+			}
+		}
+	}
+
+	//k == i
+	sumGradientCi2 = sumGradientCi2 + 
+		(gradI.x * gradI.x + 
+		 gradI.y * gradI.y +
+		 gradI.z * gradI.z);
+
+	//lambda for i
+	return ((-Ci) / ((sumGradientCi2 / pow(_REST_DENSITY, 2.0f)) + _RELXATION_PARAM));
+
+}
+
+//for collision check
+inline float3 VMin(float3 v1, float3 v2)
+{
+	return float3(min(v1.x, v2.x), min(v1.y, v2.y), min(v1.z, v2.z));
+}
+
+inline float3 VMax(float3 v1, float3 v2)
+{
+	return float3(max(v1.x, v2.x), max(v1.y, v2.y), max(v1.z, v2.z));
+}
+
+inline int Sgn(float f)
+{
+	int i;
+
+	if (f < 0)
+		i = -1;
+	if (f == 0)
+		i = 0;
+	if (f > 0)
+		i = 1;
+
+	return i;
+}
+
+int3 VSgn(float3 v)
+{
+	return int3(Sgn(v.x), Sgn(v.y), Sgn(v.z));
+}
+//auxiliary function end-------------------------------------------------------------------------
+
+//kernel function
+[numthreads(THREAD_GROUP_X, 1, 1)]
+void CalLambda(uint3 id : SV_DispatchThreadID)
+{
+	//particles are sroted so they are not necessarily in numerical order
+	//so id.x != particle.id
+	uint cid = _ParticleBuffer_RW[id.x].cellId;
+	uint a = _numGridX;
+	uint ab = a * _numGridY;
+	
+	//hard coded neighbours list, fixed for each particle,otherwise heavily nested loop is used, which is painful for gpu processor
+	//some wrong "neighbours" might be included, 
+	//even some negative values which are out of boundary as well,
+	//those error cell could be eliminated in the next stage
+	int neighbourCellList[27] =
+		{
+			cid-1-a-ab,		cid-1-a,	cid-1-a+ab, 
+			cid-1-ab,		cid-1,		cid-1+ab, 
+			cid-1+a-ab,		cid-1+a,	cid-1+a+ab,
+			cid-a-ab,		cid-a,		cid-a+ab,
+			cid-ab,			cid,		cid+ab,
+			cid+a-ab,		cid+a,		cid+a+ab,
+			cid+1-a-ab,		cid+1-a,	cid+1-a+ab,
+			cid+1-ab,		cid+1,		cid+1+ab,
+			cid+1+a-ab,		cid+1+a,	cid+1+a+ab
+		};
+
+	float Ci = DensityConstraint(id.x, neighbourCellList);
+
+	_Lambda_RW[id.x] = Lambda(id.x, Ci, neighbourCellList);//Lambda(id.x, Ci);
+}
+
+
+[numthreads(THREAD_GROUP_X, 1, 1)]
+void CalPositionCorrection(uint3 id : SV_DispatchThreadID)
+{
+	//"neighbour" cells list, including some invalid result
+	uint cid = _ParticleBuffer_RW[id.x].cellId;
+	uint a = _numGridX;
+	uint ab = a * _numGridY;
+	uint neighbourCellList[27] =
+	{
+		cid - 1 - a - ab,		cid - 1 - a,	cid - 1 - a + ab,
+		cid - 1 - ab,			cid - 1,		cid - 1 + ab,
+		cid - 1 + a - ab,		cid - 1 + a,	cid - 1 + a + ab,
+		cid - a - ab,			cid - a,		cid - a + ab,
+		cid - ab,				cid,			cid + ab,
+		cid + a - ab,			cid + a,		cid + a + ab,
+		cid + 1 - a - ab,		cid + 1 - a,	cid + 1 - a + ab,
+		cid + 1 - ab,			cid + 1,		cid + 1 + ab,
+		cid + 1 + a - ab,		cid + 1 + a,	cid + 1 + a + ab
+	};
+
+	float3 delta_q = float3(
+		ONE_OVER_SQRT_OF_3 * 0.03,
+		ONE_OVER_SQRT_OF_3 * 0.03,
+		ONE_OVER_SQRT_OF_3 * 0.03);
+
+	float ScorrBase = Poly6(length(delta_q));
+
+	float Scorr;
+	float distance;
+
+	float3 sum = float3(0,0,0);
+	float3 nPos;
+	float3 ptlPos = _ParticleBuffer_RW[id.x].predictedPos.xyz;
+
+	float lambdaI = _Lambda_RW[id.x];
+
+	uint cellNum = _numGridX * _numGridY * _numGridZ;
+	int i;
+	[unroll]for (i = 0; i < 27; i++)
+	{
+		//discard any invalid cell
+		uint cellId = neighbourCellList[i];
+		if (cellId >= 0 && cellId < cellNum)
+		{
+			uint nid;
+			for (nid = _GridPrefixSum_R[cellId]; nid < (_GridPrefixSum_R[cellId] + _GridCounter_R[cellId]); nid++)
+			{
+				nPos = _ParticleBuffer_RW[nid].predictedPos.xyz;
+				distance = length(ptlPos - nPos);
+
+				//only particles in the search space will be calculated
+				if (distance <= _KRAD && (nid != id.x))
+				{
+					Scorr = (-0.0016) * pow((Poly6(distance) / ScorrBase), 4.0f);
+
+					sum = sum + ((lambdaI + _Lambda_RW[nid] + Scorr) * GradientSpiky(ptlPos - nPos));
+				}
+			}
+		}
+	}
+
+	sum = sum / _REST_DENSITY;
+
+	_PosCorr_RW[id.x] = float4(clamp(sum, -MAX_POSITION_CORRECTION, MAX_POSITION_CORRECTION), 0.0);
+
+	//-----------------------------------------------------------------------------
+	//collision detection and response
+
+	float3 contactPoint = float3(0, 0, 0);
+	float3 surfaceNormal = float3(0, 0, 0);
+
+	float3 pLocal = ptlPos - _boundBoxCenter;
+	float3 cpLocal = VMin(_boundBoxExtent, VMax((-1 * _boundBoxExtent), pLocal));
+
+	contactPoint = _boundBoxCenter + cpLocal;
+	surfaceNormal = normalize(VSgn(cpLocal - pLocal));
+	
+	float3 tempDPlExt = abs(pLocal) - _boundBoxExtent;
+	float maxDPlExt = max(tempDPlExt.x, max(tempDPlExt.y, tempDPlExt.z));
+
+	if (Sgn(maxDPlExt) != -1)
+	{
+		_ParticleBuffer_RW[id.x].predictedPos.xyz = contactPoint;
+		_ParticleBuffer_RW[id.x].velocity.xyz = _ParticleBuffer_RW[id.x].velocity.xyz -
+			(dot(_ParticleBuffer_RW[id.x].velocity.xyz, surfaceNormal) * surfaceNormal);
+	}
+}
+
+
+[numthreads(THREAD_GROUP_X, 1, 1)]
+void UpdatePredictedPos(uint3 id : SV_DispatchThreadID)
+{
+	//last term of poscorr should be always 0;
+	_ParticleBuffer_RW[id.x].predictedPos = _ParticleBuffer_RW[id.x].predictedPos + _PosCorr_RW[id.x];  //predict position
+}

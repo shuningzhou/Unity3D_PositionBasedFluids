@@ -1,0 +1,251 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel UpdateGrid
+#pragma kernel SortPtl
+#pragma kernel ResetNNSBuffer
+
+//prefix sum kernel
+#pragma kernel CSScanInBucket
+#pragma kernel CSScanBucketResult
+#pragma kernel CSScanAddBucketResult
+
+#define groupthreads 128 //number of threads per group
+
+struct Particle
+{
+	float4 position;
+	float4 velocity;
+	float4 predictedPos;
+	uint id;
+	uint cellId;
+	float pad;
+	float pad2;
+};
+
+RWStructuredBuffer<Particle> _ParticleBuffer_RW;
+RWStructuredBuffer<Particle> _SortedParticleBuffer_W;
+
+RWStructuredBuffer<uint> _ParticleCellId_W;
+RWStructuredBuffer<uint> _ParticleInsertIdx_W;
+RWStructuredBuffer<uint> _GridCounter_W;   //size is the num of grid cell
+RWStructuredBuffer<uint> _GridPrefixSum_W; //size is the num of grid cell
+
+cbuffer myConst
+{
+	uint _numGridX;
+	uint _numGridY;
+	uint _numGridZ;
+	float3 _gridOrigin;
+	float _cellSize;
+	uint _cellCount; //number of cell in total
+};
+
+uint CellId(float3 ptlPos)
+{
+	uint3 gridCellPos = uint3(
+		floor((ptlPos.x - _gridOrigin.x) / _cellSize),
+		floor((ptlPos.y - _gridOrigin.y) / _cellSize),
+		floor((ptlPos.z - _gridOrigin.z) / _cellSize)
+		);
+
+	return (gridCellPos.x + gridCellPos.y * _numGridX + gridCellPos.z * _numGridY * _numGridX);
+}
+
+//insert + count
+[numthreads(groupthreads,1,1)]
+void UpdateGrid(uint3 id : SV_DispatchThreadID)
+{
+	uint index = id.x;
+	uint cellId = CellId(_ParticleBuffer_RW[index].predictedPos);
+
+	uint counterVal;
+	//atomic add
+	InterlockedAdd(_GridCounter_W[cellId], 1, counterVal);
+
+	_ParticleCellId_W[index] = cellId;
+	_ParticleBuffer_RW[index].cellId = cellId;
+
+	_ParticleInsertIdx_W[index] = counterVal;
+}
+
+[numthreads(groupthreads, 1, 1)]
+void SortPtl(uint3 id : SV_DispatchThreadID)
+{
+	uint index = id.x;
+
+	uint ptlId = _ParticleBuffer_RW[index].id;
+
+	uint newIndex = _GridPrefixSum_W[_ParticleCellId_W[index]] + _ParticleInsertIdx_W[index];    //index + offset
+
+	//reindex particle
+	_SortedParticleBuffer_W[newIndex].position = _ParticleBuffer_RW[index].position;
+	_SortedParticleBuffer_W[newIndex].velocity = _ParticleBuffer_RW[index].velocity;
+	_SortedParticleBuffer_W[newIndex].predictedPos = _ParticleBuffer_RW[index].predictedPos;
+	_SortedParticleBuffer_W[newIndex].id = _ParticleBuffer_RW[index].id;
+	_SortedParticleBuffer_W[newIndex].cellId = _ParticleBuffer_RW[index].cellId;
+}
+
+
+[numthreads(groupthreads, 1, 1)]
+void ResetNNSBuffer(uint3 id : SV_DispatchThreadID)
+{
+	_GridPrefixSum_W[id.x] = 0;
+	_GridCounter_W[id.x] = 0;
+}
+
+
+//prefix-sum-from-direct-x-sdk-sample-------------------------------------------
+//website: https://github.com/walbourn/directx-sdk-samples/blob/master/AdaptiveTessellationCS40/ScanCS.hlsl
+//Copyright info:
+//--------------------------------------------------------------------------------------
+// File: ScanCS.hlsl
+//
+// A simple inclusive prefix sum(scan) implemented in CS4.0, 
+// using a typical up sweep and down sweep scheme
+//
+// Copyright (c) Microsoft Corporation. All rights reserved.
+//--------------------------------------------------------------------------------------
+StructuredBuffer<uint> Input : register(t0);     // Change uint2 here if scan other types, and
+RWStructuredBuffer<uint> Result : register(u0);  // also here
+
+
+groupshared uint2 bucket[groupthreads];             // Change uint4 to the "type x2" if scan other types, e.g.
+													// if scan uint2, then put uint4 here,
+													// if scan float, then put float2 here
+
+void CSScan(uint3 DTid, uint GI, uint2 x)         // Change the type of x here if scan other types
+{
+	// since CS40 can only support one shared memory for one shader, we use .xy and .zw as ping-ponging buffers
+	// if scan a single element type like int, search and replace all .xy to .x and .zw to .y below
+	bucket[GI].x = x;
+	bucket[GI].y = 0;
+
+	// Up sweep    
+	[unroll]
+	for (uint stride = 2; stride <= groupthreads; stride <<= 1)
+	{
+		GroupMemoryBarrierWithGroupSync();
+
+		if ((GI & (stride - 1)) == (stride - 1))
+		{
+			bucket[GI].x += bucket[GI - stride / 2].x;
+		}
+	}
+
+	if (GI == (groupthreads - 1))
+	{
+		bucket[GI].x = 0;
+	}
+
+	// Down sweep
+	bool n = true;
+	[unroll]
+	for (stride = groupthreads / 2; stride >= 1; stride >>= 1)
+	{
+		GroupMemoryBarrierWithGroupSync();
+
+		uint a = stride - 1;
+		uint b = stride | a;
+
+		if (n)        // ping-pong between passes
+		{
+			if ((GI & b) == b)
+			{
+				bucket[GI].y = bucket[GI - stride].x + bucket[GI].x;
+			}
+			else
+				if ((GI & a) == a)
+				{
+					bucket[GI].y = bucket[GI + stride].x;
+				}
+				else
+				{
+					bucket[GI].y = bucket[GI].x;
+				}
+		}
+		else
+		{
+			if ((GI & b) == b)
+			{
+				bucket[GI].x = bucket[GI - stride].y + bucket[GI].y;
+			}
+			else
+				if ((GI & a) == a)
+				{
+					bucket[GI].x = bucket[GI + stride].y;
+				}
+				else
+				{
+					bucket[GI].x = bucket[GI].y;
+				}
+		}
+
+		n = !n;
+	}
+
+	Result[DTid.x] = bucket[GI].y + x;
+}
+
+// scan in each bucket
+[numthreads(groupthreads, 1, 1)]
+void CSScanInBucket(uint3 DTid : SV_DispatchThreadID, uint3 GTid : SV_GroupThreadID, uint GI : SV_GroupIndex)
+{
+	//slightly modified to exclusive prefix sum
+	uint x = ((DTid == 0) ? 0 : Input[DTid.x - 1]);
+	CSScan(DTid, GI, x);
+
+	//uint x = Input[DTid.x];                    // Change the type of x here if scan other types 
+	//CSScan(DTid, GI, x);
+}
+
+// record and scan the sum of each bucket
+[numthreads(groupthreads, 1, 1)]
+void CSScanBucketResult(uint3 DTid : SV_DispatchThreadID, uint3 GTid : SV_GroupThreadID, uint GI : SV_GroupIndex)
+{
+	uint x = Input[DTid.x*groupthreads - 1];   // Change the type of x here if scan other types
+	CSScan(DTid, GI, x);
+}
+
+StructuredBuffer<uint> Input1 : register(t1);
+
+// add the bucket scanned result to each bucket to get the final result
+[numthreads(groupthreads, 1, 1)]
+void CSScanAddBucketResult(uint3 Gid : SV_GroupID, uint3 DTid : SV_DispatchThreadID, uint3 GTid : SV_GroupThreadID, uint GI : SV_GroupIndex)
+{
+	Result[DTid.x] = Input[DTid.x] + Input1[Gid.x];
+}
+
+
+
+
+/*
+deprecated
+[numthreads(CELL_NUM, 1, 1)]
+void PrefixSum(uint3 id : SV_DispatchThreadID)
+{
+if (id.x < _cellCount)
+{
+uint sum = 0;
+
+uint i;
+for (i = 0; i < id.x; i++)
+{
+sum += _GridCounter_W[i];
+}
+
+_GridPrefixSum_W[id.x] = sum;
+}
+}
+*/
+
+/* legacy sort
+//tested 0.1
+[numthreads(THREAD_GROUP_X, 1, 1)]
+void SortPtl(uint3 id : SV_DispatchThreadID)
+{
+uint ptlId = id.x;
+
+uint index = _GridPrefixSum_W[_ParticleCellId_W[ptlId]] + _ParticleInsertIdx_W[ptlId];    //index + offset
+
+_SortedParticleBuffer_W[index] = _ParticleBuffer_RW[ptlId].id;
+}
+*/

@@ -1,0 +1,25 @@
+fileFormatVersion: 2
+guid: cc1e0b3b1b3066c4cbe369509266ac24
+timeCreated: 1518283172
+licenseType: Free
+MonoImporter:
+  serializedVersion: 2
+  defaultReferences:
+  - cs_Initializer: {fileID: 7200000, guid: e86749b01c4448a41808475d1581f1ab, type: 3}
+  - cs_TestGrav: {fileID: 7200000, guid: 123d88054e65b3440b7574407384e092, type: 3}
+  - cs_Lambda: {fileID: 7200000, guid: ab2668044f694fb4ba0806f60cecf831, type: 3}
+  - cs_NNS: {fileID: 7200000, guid: 53c79a24081652b4fb2a5090e1768eb6, type: 3}
+  - tex_depthTexture: {fileID: 8400000, guid: 0d03cf612d9d23844b450e6d88a0842f, type: 2}
+  - tex_blurredDepthTexture: {fileID: 8400000, guid: 2a1c13e19e6be124ead531debb3f9cd8,
+      type: 2}
+  - tex_tempBlurredDepthTexture: {fileID: 8400000, guid: b6a80ee8d0400494996dbe7dcc54d4d8,
+      type: 2}
+  - tex_normalTexture: {fileID: 8400000, guid: 15333320d39d5a04ba8fde9936af89cf, type: 2}
+  - tex_thicknessTexture: {fileID: 8400000, guid: 7a11f158e3323514fa883b0c0ca4cdf9,
+      type: 2}
+  - m_cubemap: {fileID: 8900000, guid: 3b5d67736d7b8ad4f8da4d58eaef0b98, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

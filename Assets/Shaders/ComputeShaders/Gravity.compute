@@ -1,0 +1,226 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel UpdateExternelForce
+#pragma kernel UpdateVelocity
+#pragma kernel UpdatePosition
+#pragma kernel CalOmega
+
+#define THREAD_GROUP_X 128
+
+#define EPSILON 0.0001f
+
+struct Particle
+{
+	float4 position;
+	float4 velocity;
+	float4 predictedPos;
+	uint id;
+	uint cellId;
+	float pad;
+	float pad2;
+};
+
+RWStructuredBuffer<Particle> _ParticleBuffer_RW;
+//read only
+StructuredBuffer<uint> _GridCounter_R;   //size is the num of grid cell
+StructuredBuffer<uint> _GridPrefixSum_R; //size is the num of grid cell
+
+StructuredBuffer<float4> _PosCorr_R;
+StructuredBuffer<float> _Density_R;
+RWStructuredBuffer<float4> _Omega_RW;
+
+cbuffer MyConstants 
+{
+	float _timestep;
+	float3 _gravity;
+
+	float _KRAD;
+	int _numGridX;
+	int _numGridY;
+	int _numGridZ;
+
+	float _Poly6Const;
+	float _GradSpikyConst;
+};
+
+[numthreads(THREAD_GROUP_X, 1, 1)]
+void UpdateExternelForce(uint3 id : SV_DispatchThreadID)
+{
+	_ParticleBuffer_RW[id.x].velocity += float4(_gravity * _timestep, 0.0);  //apply external force
+
+	_ParticleBuffer_RW[id.x].predictedPos = _ParticleBuffer_RW[id.x].position + _ParticleBuffer_RW[id.x].velocity * _timestep;  //predict position
+}
+
+
+//---------------------------------------------------------------------------------
+float Poly6(float distanceIJ_length)
+{
+	float h2r2 = pow(_KRAD, 2.0f) - pow(distanceIJ_length, 2.0f);
+
+	if (h2r2 < EPSILON)
+	{
+		return 0.0f;
+	}
+
+	return _Poly6Const * pow(h2r2, 3.0f);
+}
+
+float3 GradientSpiky(float3 distanceIJ)
+{
+	float r = length(distanceIJ);
+
+	if (r <= EPSILON)
+	{
+		return float3(0, 0, 0);
+	}
+
+	float constant = (_GradSpikyConst * pow(_KRAD - r, 2.0f)) / r;
+
+	return float3(constant * distanceIJ.x, constant * distanceIJ.y, constant * distanceIJ.z);
+}
+//---------------------------------------------------------------------------------
+
+[numthreads(THREAD_GROUP_X, 1, 1)]
+void UpdateVelocity(uint3 id : SV_DispatchThreadID)
+{
+	//update velocity
+	_ParticleBuffer_RW[id.x].velocity = (1 / _timestep) *
+		(_ParticleBuffer_RW[id.x].predictedPos - _ParticleBuffer_RW[id.x].position);
+}
+
+[numthreads(THREAD_GROUP_X, 1, 1)]
+void CalOmega(uint3 id : SV_DispatchThreadID)
+{
+	//"neighbour" cells list, including some wrong result
+	uint cid = _ParticleBuffer_RW[id.x].cellId;
+	uint a = _numGridX;
+	uint ab = a * _numGridY;
+	uint neighbourCellList[27] =
+	{
+		cid - 1 - a - ab,		cid - 1 - a,	cid - 1 - a + ab,
+		cid - 1 - ab,			cid - 1,		cid - 1 + ab,
+		cid - 1 + a - ab,		cid - 1 + a,	cid - 1 + a + ab,
+		cid - a - ab,			cid - a,		cid - a + ab,
+		cid - ab,				cid,			cid + ab,
+		cid + a - ab,			cid + a,		cid + a + ab,
+		cid + 1 - a - ab,		cid + 1 - a,	cid + 1 - a + ab,
+		cid + 1 - ab,			cid + 1,		cid + 1 + ab,
+		cid + 1 + a - ab,		cid + 1 + a,	cid + 1 + a + ab
+	};
+
+	float distance;
+
+	float3 nPos;
+	float3 ptlPos = _ParticleBuffer_RW[id.x].predictedPos.xyz;
+	float3 vij;
+	float3 omega = float3(0, 0, 0);
+
+	uint cellNum = _numGridX * _numGridY * _numGridZ;
+	
+	int counter = 0;
+	int i;
+
+	//calculate omega
+	[unroll]for (i = 0; i < 27; i++)
+	{
+		//discard any invalid cell
+		uint cellId = neighbourCellList[i];
+		if (cellId >= 0 && cellId < cellNum)
+		{
+			uint nid;
+			for (nid = _GridPrefixSum_R[cellId]; nid < (_GridPrefixSum_R[cellId] + _GridCounter_R[cellId]); nid++)
+			{
+				nPos = _ParticleBuffer_RW[nid].predictedPos.xyz;
+				distance = length(ptlPos - nPos);
+
+				//only particles in the search space will be calculated
+				if (distance <= _KRAD)
+				{
+					//vij = vj - vi
+					vij = _ParticleBuffer_RW[nid].velocity.xyz - _ParticleBuffer_RW[id.x].velocity.xyz;
+					omega = omega + cross(vij, GradientSpiky(ptlPos - nPos));
+				}
+			}
+		}
+	}
+
+	_Omega_RW[id.x] = float4(omega, 0.0f);
+}
+
+[numthreads(THREAD_GROUP_X, 1, 1)]
+void UpdatePosition(uint3 id : SV_DispatchThreadID)
+{
+	//"neighbour" cells list, including some invalid result
+	uint cid = _ParticleBuffer_RW[id.x].cellId;
+	uint a = _numGridX;
+	uint ab = a * _numGridY;
+	uint neighbourCellList[27] =
+	{
+		cid - 1 - a - ab,		cid - 1 - a,	cid - 1 - a + ab,
+		cid - 1 - ab,			cid - 1,		cid - 1 + ab,
+		cid - 1 + a - ab,		cid - 1 + a,	cid - 1 + a + ab,
+		cid - a - ab,			cid - a,		cid - a + ab,
+		cid - ab,				cid,			cid + ab,
+		cid + a - ab,			cid + a,		cid + a + ab,
+		cid + 1 - a - ab,		cid + 1 - a,	cid + 1 - a + ab,
+		cid + 1 - ab,			cid + 1,		cid + 1 + ab,
+		cid + 1 + a - ab,		cid + 1 + a,	cid + 1 + a + ab
+	};
+
+	float distance;
+	float msdst;
+
+	float3 visoSum = float3(0, 0, 0);
+	float3 nPos;
+	float3 ptlPos = _ParticleBuffer_RW[id.x].predictedPos.xyz;
+	float3 vij;
+	float3 locationVector = float3(0,0,0);
+
+	uint cellNum = _numGridX * _numGridY * _numGridZ;
+	int i;
+	[unroll]for (i = 0; i < 27; i++)
+	{
+		//discard any invalid cell
+		uint cellId = neighbourCellList[i];
+		if (cellId >= 0 && cellId < cellNum)
+		{
+			uint nid;
+			for (nid = _GridPrefixSum_R[cellId]; nid < (_GridPrefixSum_R[cellId] + _GridCounter_R[cellId]); nid++)
+			{
+				nPos = _ParticleBuffer_RW[nid].predictedPos.xyz;
+				distance = length(ptlPos - nPos);
+
+				//only particles in the search space will be calculated
+				if (distance <= _KRAD)
+				{
+					msdst = 1 / max(_Density_R[nid], 100.0f);
+
+					//vorticity
+					locationVector =
+						msdst *
+						length(_Omega_RW[nid].xyz) * 
+						GradientSpiky(ptlPos - nPos);
+
+					//XPH viscosity
+					vij = _ParticleBuffer_RW[nid].velocity.xyz - _ParticleBuffer_RW[id.x].velocity.xyz;
+					visoSum = visoSum + msdst * vij * Poly6(distance);
+				}
+			}
+		}
+	}
+
+	float3 fVorticity = float3(0, 0, 0);
+
+	float lengthLV = length(locationVector);
+
+	if (lengthLV > EPSILON)
+	{
+		fVorticity = 0.0012 * cross((locationVector / lengthLV), _Omega_RW[id.x].xyz);
+	}
+
+	_ParticleBuffer_RW[id.x].velocity = float4((_ParticleBuffer_RW[id.x].velocity.xyz
+		+ 0.08 * visoSum + _timestep * fVorticity), 0.0f);
+
+	//update position
+	_ParticleBuffer_RW[id.x].position = _ParticleBuffer_RW[id.x].predictedPos;
+}
+

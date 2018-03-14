@@ -1,0 +1,47 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Init
+
+#define THREAD_GROUP_X 128
+
+struct Particle
+{
+	float4 position;
+	float4 velocity;
+	float4 predictedPos;
+	uint id;
+	uint cellId;
+	float pad;
+	float pad2;
+};
+
+RWStructuredBuffer<Particle> particleBuffer;
+
+cbuffer MyConstants
+{
+	float mass;
+	float step;
+	int sideLength;
+	float3 coordCenter;
+};
+
+[numthreads(THREAD_GROUP_X,1,1)]
+void Init(uint3 id : SV_DispatchThreadID)
+{
+	//arranging particles to form a sideLength^3 cube
+	//particleBuffer[id.x].v3Position = particleBuffer[id.x].v3PredictedPos = (float3(id.x % sideLength, id.x / sideLength % sideLength, id.x / (sideLength * sideLength)) * step) + coordCenter;
+
+	float3 v3position = float3(
+		id.x % sideLength,
+		id.x / (sideLength * sideLength),
+		id.x / sideLength % sideLength) * step + coordCenter;
+
+	//add one component to align with cache line size
+	particleBuffer[id.x].position =
+		particleBuffer[id.x].predictedPos =
+		float4 (v3position, 0.0);
+
+	particleBuffer[id.x].velocity = float4(0, 0, 0, 0);
+
+	particleBuffer[id.x].id = id.x;
+}
+
