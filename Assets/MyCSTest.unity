@@ -310,18 +310,19 @@ MonoBehaviour:
   tex_thicknessTexture: {fileID: 8400000, guid: 7a11f158e3323514fa883b0c0ca4cdf9,
     type: 2}
   m_cubemap: {fileID: 8900000, guid: c432649b8695cb541aebdc4565703cfa, type: 3}
-  m_particleRadius: 0.1
-  m_blurScale: 0.1
-  m_blurRadius: 5
-  m_blurDepthFalloff: 2
-  m_filterRadius: 7
-  m_surfaceColor: {x: 0.35, y: 0.4, z: 0.42, w: 1}
-  m_refractionIndex: 1.5
-  m_shiness: 200
+  m_particleRadius: 0.12
+  m_blurScale: 1
+  m_blurRadius: 8
+  m_blurDepthFalloff: 550
+  m_filterRadius: 9
+  m_surfaceColor: {x: 0.4, y: 0.45, z: 0.46, w: 1}
+  m_refractionIndex: 1.33
+  m_shiness: 400
   r_isBlur: 1
   r_isNormal: 1
   r_isSurfaceShading: 1
-  r_isTransparent: 0
+  r_isTransparent: 1
+  r_isRaw: 0
 --- !u!4 &1229679953
 Transform:
   m_ObjectHideFlags: 0
@@ -366,7 +367,7 @@ MeshRenderer:
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: a4f2e1c989c362a4495ed1252fe42c14, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

@@ -53,15 +53,15 @@
 
 			float3 uvToEye(float2 texCoord, float z)
 			{
-				// Convert texture coordinate to homogeneous space
-				float zFar = _ProjectionParams.z;
-				float zNear = _ProjectionParams.y;
+				// Convert texture coordinate to view space
+				float zfar = _ProjectionParams.z;
+				float znear = _ProjectionParams.y;
 
-				float2 xyPos = (texCoord * 2.0 - 1.0);
-				float a = zFar / (zFar - zNear);
-				float b = zFar*zNear / (zNear - zFar);
+				float2 unitcubePos = (texCoord * 2.0 - 1.0);
+				float a = zfar / (zfar - znear);
+				float b = zfar * znear / (znear - zfar);
 				float rd = b / (z - a);
-				return float3(xyPos.x, xyPos.y, -1.0) * rd;
+				return float3(unitcubePos.x, unitcubePos.y, -1.0) * rd;
 			}
 
 			//Schlick's approximation, assume interface1 is air -> refrIdx = 1
@@ -115,18 +115,21 @@
 				//cubemap reflection
 				float3 reflDir = reflect(-viewerVector, eyeSpaceN);
 				//text cube only works correct with world coordinates
-				float3 myreflection = texCUBE(_Cube, mul(UnityIV(viewMatrix), reflDir)) * Fresnel(viewerVector, eyeSpaceN, refractionIndex);
+
+				//reflection rate
+				float Rr = Fresnel(viewerVector, eyeSpaceN, refractionIndex);
+				float3 myreflection = texCUBE(_Cube, mul(UnityIV(viewMatrix), reflDir)) * Rr;
 
 				//color absorption
 
 				float thickness = tex2D(_ThicknessTex, i.coord);
 
 				//8.0, 2.0, 1.0 -> constant coefficient for each color channel
-				float3 beerLambert = float3(exp(-4.0*thickness), exp(-1.0*thickness), exp(-0.6*thickness));
+				float3 beerLambert = float3(exp(-8.0*thickness), exp(-2.0*thickness), exp(-1.2*thickness));
 
 				//background
 				float2 uv = i.coord;
-				float2 uv2 = uv + (eyeSpaceN.xy * thickness * 0.1); //0.1 -> thickness fall off
+				float2 uv2 = uv + (eyeSpaceN.xy * thickness * 0.5); //0.5 -> refraction fall off
 				//flip coordinates if unity uv is inverse
 #if UNITY_UV_STARTS_AT_TOP
 				uv.y = 1 - uv.y;
@@ -142,16 +145,18 @@
 				}
 				else
 				{
-					float4 opaque = float4((mydiffuse + myambient) * beerLambert + myreflection + myspecular, 1);
+					float3 opaque = (mydiffuse + myambient) * beerLambert + myreflection + myspecular;
 
 					if (isTransparent)
 					{
 						float tScale = clamp(thickness * 0.5 + 0.5, 0.0, 1.0);
-						OUT.color = float4(opaque.xyz * tScale + tex2D(_GrabTexture, uv2) * (1 - tScale), 1.0);
+						float refraction = tex2D(_GrabTexture, uv2) * (1 - Rr);
+						
+						OUT.color = float4(opaque * tScale + refraction * (1 - tScale), 1.0);
 					}
 					else
 					{
-						OUT.color = opaque;
+						OUT.color = float4(opaque, 1.0);
 					}
 
 

@@ -890,19 +890,22 @@ public class EvoShaderScripts : MonoBehaviour {
     public bool r_isNormal = true;
     public bool r_isSurfaceShading = true;
     public bool r_isTransparent = true;
+    public bool r_isRaw = false;
     void OnRenderObject()
     {
-#if false
-        PointSprite();
-#else
-        Depth();
-        BlurredDepth(r_isBlur);
-        Normal(r_isNormal);
-        Thickness();
-        SurfaceShading(r_isSurfaceShading);
-#endif
-
-
+        if (r_isRaw)
+        {
+            PointSprite();
+        }
+        else
+        {
+            Depth();
+            BlurredDepth(r_isBlur);
+            Normal(r_isNormal);
+            Thickness();
+            SurfaceShading(r_isSurfaceShading);
+        }
+ 
         Graphics.SetRenderTarget(Camera.main.targetTexture);
     }
 

@@ -85,12 +85,8 @@
 					sum /= wsum;
 				}
 
-				//	OUT.depth = sum;
 				OUT.color = sum;
-				//	sum = clamp(sum, 0.0, 0.999);
-				//	OUT.color = EncodeFloatRGBA(sum);
-
-
+				
 				return OUT;
 			}
 			ENDCG

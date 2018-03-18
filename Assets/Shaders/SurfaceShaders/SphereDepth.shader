@@ -123,32 +123,15 @@
 				float4 pixelPos = float4 (input.eyeSpacePos + N * _ptlRadius, 1.0);
 				float4 clipSpacePos = mul(UNITY_MATRIX_P, pixelPos);
 
-				
 				//------------------------------------------------------
 				float sphereDepth = clipSpacePos.z / clipSpacePos.w;
 				OUT.fragDepth = sphereDepth;
 
 				#if defined(UNITY_REVERSED_Z)
-				OUT.fragColor = 1.0 - sphereDepth;	 //enhenced depth value
+				OUT.fragColor = 1.0 - sphereDepth;
 				#else
 				OUT.fragColor = sphereDepth;
 				#endif
-
-				//OUT.fragColor = sphereDepth;
-				//-------------------------------------------------------
-				
-				//normal test
-
-
-				/*
-				OUT.fragDepth = clipSpacePos.z / clipSpacePos.w;
-
-				float diffuseMul = max(0.0, dot(N, input.lightDir) * 0.5 + 0.5);
-				float3 diffuse = input.color * _LightColor0.rgb * diffuseMul;
-				float3 ambient = input.color * UNITY_LIGHTMODEL_AMBIENT.rgb;
-
-				OUT.fragColor = float4(ambient + diffuse, 1.0);
-				*/
 
 				return OUT;
 			}
