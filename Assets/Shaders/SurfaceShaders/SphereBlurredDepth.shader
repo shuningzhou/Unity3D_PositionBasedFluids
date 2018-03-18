@@ -59,7 +59,7 @@
 				fout OUT;
 				float depth = tex2D(_DepthTex,  i.coord);
 
-				float blurScale = 2.0 / radius;
+				float blurScale = 1.0 / radius;
 
 				float sum = 0.0;
 				float wsum = 0.0;	//sum of weights

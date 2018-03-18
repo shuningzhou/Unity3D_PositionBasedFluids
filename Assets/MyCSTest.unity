@@ -311,11 +311,11 @@ MonoBehaviour:
     type: 2}
   m_cubemap: {fileID: 8900000, guid: c432649b8695cb541aebdc4565703cfa, type: 3}
   m_particleRadius: 0.1
-  m_blurScale: 2
-  m_blurRadius: 11
-  m_blurDepthFalloff: 12
+  m_blurScale: 0.1
+  m_blurRadius: 5
+  m_blurDepthFalloff: 2
   m_filterRadius: 7
-  m_surfaceColor: {x: 1, y: 1, z: 1, w: 1}
+  m_surfaceColor: {x: 0.35, y: 0.4, z: 0.42, w: 1}
   m_refractionIndex: 1.5
   m_shiness: 200
   r_isBlur: 1

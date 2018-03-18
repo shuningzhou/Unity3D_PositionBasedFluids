@@ -128,17 +128,11 @@
 				float sphereDepth = clipSpacePos.z / clipSpacePos.w;
 				OUT.fragDepth = sphereDepth;
 
-				float color;
 				#if defined(UNITY_REVERSED_Z)
-				color = 1.0 - sphereDepth;
+				OUT.fragColor = 1.0 - sphereDepth;	 //enhenced depth value
 				#else
-				color = sphereDepth;
+				OUT.fragColor = sphereDepth;
 				#endif
-
-				//if (color > 0.9)
-					//color = 0;
-
-				OUT.fragColor = color;
 
 				//OUT.fragColor = sphereDepth;
 				//-------------------------------------------------------
