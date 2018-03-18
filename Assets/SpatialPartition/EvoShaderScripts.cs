@@ -63,7 +63,7 @@ public class EvoShaderScripts : MonoBehaviour {
 
     private float REST_DENSITY = 1000;//998.29F;
     private static int particleAmount = 65536;//79872;//65536;
-    private static int sideLength = 64;
+    private static int sideLength = 48;
     private int TOTAL_PARTICLES = particleAmount;
     private float TIME_STEP = 0.016f;
     private float KRAD;
