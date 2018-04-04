@@ -287,7 +287,7 @@ void CalPositionCorrection(uint3 id : SV_DispatchThreadID)
 				//only particles in the search space will be calculated
 				if (distance <= _KRAD && (nid != id.x))
 				{
-					Scorr = (-0.0016) * pow((Poly6(distance) / ScorrBase), 4.0f);
+					Scorr = (-0.0018) * pow((Poly6(distance) / ScorrBase), 4.0f);
 
 					sum = sum + ((lambdaI + _Lambda_RW[nid] + Scorr) * GradientSpiky(ptlPos - nPos));
 				}

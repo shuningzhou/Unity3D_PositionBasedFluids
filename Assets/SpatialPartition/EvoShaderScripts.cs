@@ -62,12 +62,12 @@ public class EvoShaderScripts : MonoBehaviour {
     private Vector3 G = new Vector3(0, -9.8f, 0);
 
     private float REST_DENSITY = 1000;//998.29F;
-    private static int particleAmount = 65536;//79872;//65536;
+    private static int particleAmount = 65536; //65536;//79872;//65536; //98304 //114688
     private static int sideLength = 48;
     private int TOTAL_PARTICLES = particleAmount;
     private float TIME_STEP = 0.016f;
     private float KRAD;
-    private float RELXATION_PARAM = 500;
+    private float RELXATION_PARAM = 200;
 
     private float Poly6Constant;
     private float GradSpikyConstant;
@@ -213,12 +213,13 @@ public class EvoShaderScripts : MonoBehaviour {
 
     // Use this for initialization
     void Start () {
-        KRAD = 0.2f;//Mathf.Pow(((3 * VOLUME * KERNEL_PARTICLE) / (4 * Mathf.PI * PARTICLES_PER_VOLUME)), 1.0f / 3.0f);
+        KRAD = 0.25f;//Mathf.Pow(((3 * VOLUME * KERNEL_PARTICLE) / (4 * Mathf.PI * PARTICLES_PER_VOLUME)), 1.0f / 3.0f);
         particleMass = 1f;//REST_DENSITY * VOLUME / PARTICLES_PER_VOLUME;
-        particleSize = (0.2f / 2.2f);//Mathf.Pow((particleMass * 3) / (4 * Mathf.PI * REST_DENSITY), (1.0f / 3.0f));
+        particleSize = (0.25f / 2.2f);//Mathf.Pow((particleMass * 3) / (4 * Mathf.PI * REST_DENSITY), (1.0f / 3.0f));
 
         Debug.Log("kernel radius" + KRAD);
         Debug.Log("diameter" + particleSize);
+        Debug.Log("Theory diameter: " + Mathf.Pow((3) / (4 * Mathf.PI * REST_DENSITY), (1.0f / 3.0f)) * 2);
 
         //kenrel constant terms
         Poly6Constant = 315.0f / (64.0f * Mathf.PI * Mathf.Pow(KRAD, 9.0f));
@@ -521,7 +522,7 @@ public class EvoShaderScripts : MonoBehaviour {
 
     void GridInit()
     {
-        cellSize = 2 * KRAD;
+        cellSize = 1.5f * KRAD;
         gridSize = new Vector3(cellNumX, cellNumY, cellNumZ);        //should be int3, num be cells
         gridOrigin = this.transform.position -  (new Vector3(KRAD, KRAD, KRAD));
         gridCenter = gridOrigin + (gridSize / 2) * cellSize;
@@ -567,7 +568,7 @@ public class EvoShaderScripts : MonoBehaviour {
         cs_Lambda.SetFloat("_GradSpikyConst", GradSpikyConstant);
         cs_Lambda.SetFloat("_ptlMass", particleMass);
 
-        cs_TestGrav.SetFloat("_timestep", TIME_STEP);
+        //cs_TestGrav.SetFloat("_timestep", TIME_STEP);
         cs_TestGrav.SetVector("_gravity", G);
         cs_TestGrav.SetFloat("_KRAD", KRAD);
         cs_TestGrav.SetInt("_numGridX", cellNumX);
@@ -620,6 +621,7 @@ public class EvoShaderScripts : MonoBehaviour {
         i_cs_UpdatePredPosID = cs_Lambda.FindKernel("UpdatePredictedPos");
     }
 
+    /*
     void Update()
     {
         if (Input.GetKeyUp(KeyCode.Space))
@@ -650,11 +652,44 @@ public class EvoShaderScripts : MonoBehaviour {
             }
         }
     }
+    */
 
-    void FixedUpdate()
+
+    //void FixedUpdate()
+    void Update()
     {
+        if (Input.GetKeyUp(KeyCode.Space))
+        {
+            executionLock = !executionLock;
+            Debug.Log("Locker: " + executionLock);
+        }
+
+        if (Input.GetKey(KeyCode.A))
+        {
+            if (tempBBExtent.x > 0)
+            {
+                tempBBCenter.x -= 0.02f;
+                tempBBExtent.x -= 0.02f;
+                cs_Lambda.SetVector("_boundBoxCenter", tempBBCenter);
+                cs_Lambda.SetVector("_boundBoxExtent", tempBBExtent);
+            }
+        }
+
+        if (Input.GetKey(KeyCode.D))
+        {
+            if (tempBBExtent.x < boundBoxExtent.x)
+            {
+                tempBBCenter.x += 0.02f;
+                tempBBExtent.x += 0.02f;
+                cs_Lambda.SetVector("_boundBoxCenter", tempBBCenter);
+                cs_Lambda.SetVector("_boundBoxExtent", tempBBExtent);
+            }
+        }
+
         if (executionLock == false)
         {
+            cs_TestGrav.SetFloat("_timestep", Time.deltaTime);
+
             //Update gravity force---------------------------------------------
             cs_TestGrav.SetBuffer(i_cs_UpdateExternelForceID, "_ParticleBuffer_RW", sb_particles);
             cs_TestGrav.Dispatch(i_cs_UpdateExternelForceID, iWarpCount, 1, 1);

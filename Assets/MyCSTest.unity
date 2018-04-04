@@ -310,7 +310,7 @@ MonoBehaviour:
   tex_thicknessTexture: {fileID: 8400000, guid: 7a11f158e3323514fa883b0c0ca4cdf9,
     type: 2}
   m_cubemap: {fileID: 8900000, guid: c432649b8695cb541aebdc4565703cfa, type: 3}
-  m_particleRadius: 0.12
+  m_particleRadius: 0.14
   m_blurScale: 1
   m_blurRadius: 8
   m_blurDepthFalloff: 550
@@ -322,7 +322,7 @@ MonoBehaviour:
   r_isNormal: 1
   r_isSurfaceShading: 1
   r_isTransparent: 1
-  r_isRaw: 0
+  r_isRaw: 1
 --- !u!4 &1229679953
 Transform:
   m_ObjectHideFlags: 0

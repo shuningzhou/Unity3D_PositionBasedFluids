@@ -135,9 +135,9 @@ public class NNSTest : MonoBehaviour {
 
 
 #if true
-        KRAD = 0.5f;//Mathf.Pow(((3 * VOLUME * KERNEL_PARTICLE) / (4 * Mathf.PI * PARTICLES_PER_VOLUME)), 1.0f / 3.0f);
+        KRAD = 0.24f;//Mathf.Pow(((3 * VOLUME * KERNEL_PARTICLE) / (4 * Mathf.PI * PARTICLES_PER_VOLUME)), 1.0f / 3.0f);
         particleMass = 1f;//REST_DENSITY * VOLUME / PARTICLES_PER_VOLUME;
-        particleSize = (0.5f / 2.2f);//Mathf.Pow((particleMass * 3) / (4 * Mathf.PI * REST_DENSITY), (1.0f / 3.0f));
+        particleSize = (0.24f / 2.2f);//Mathf.Pow((particleMass * 3) / (4 * Mathf.PI * REST_DENSITY), (1.0f / 3.0f));
         
         Debug.Log("kernel radius"  + KRAD);
         Debug.Log("diameter" + particleSize);
