@@ -185,6 +185,7 @@ GameObject:
   - component: {fileID: 1208137174}
   - component: {fileID: 1208137173}
   - component: {fileID: 1208137172}
+  - component: {fileID: 1208137177}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -262,6 +263,17 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 8.9, y: 8.62, z: 0}
+--- !u!114 &1208137177
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1208137171}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 966e4cd0625354e43be5a04b62d84292, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1229679951
 GameObject:
   m_ObjectHideFlags: 0
@@ -310,10 +322,10 @@ MonoBehaviour:
   tex_thicknessTexture: {fileID: 8400000, guid: 7a11f158e3323514fa883b0c0ca4cdf9,
     type: 2}
   m_cubemap: {fileID: 8900000, guid: c432649b8695cb541aebdc4565703cfa, type: 3}
-  m_particleRadius: 0.14
+  m_particleRadius: 0.1
   m_blurScale: 1
   m_blurRadius: 8
-  m_blurDepthFalloff: 550
+  m_blurDepthFalloff: 500
   m_filterRadius: 9
   m_surfaceColor: {x: 0.4, y: 0.45, z: 0.46, w: 1}
   m_refractionIndex: 1.33
@@ -412,7 +424,7 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1235563615}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.07, y: 2.41, z: 6.92}
+  m_LocalPosition: {x: -2.38, y: 4, z: 6.92}
   m_LocalScale: {x: 10, y: 10, z: 10}
   m_Children: []
   m_Father: {fileID: 0}

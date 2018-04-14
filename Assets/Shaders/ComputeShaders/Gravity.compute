@@ -214,11 +214,11 @@ void UpdatePosition(uint3 id : SV_DispatchThreadID)
 
 	if (lengthLV > EPSILON)
 	{
-		fVorticity = 0.0018 * cross((locationVector / lengthLV), _Omega_RW[id.x].xyz);
+		fVorticity = 0.0016 * cross((locationVector / lengthLV), _Omega_RW[id.x].xyz);
 	}
 
 	_ParticleBuffer_RW[id.x].velocity = float4((_ParticleBuffer_RW[id.x].velocity.xyz
-		+ 0.06 * visoSum + _timestep * fVorticity), 0.0f);
+		+ 0.005 * visoSum + _timestep * fVorticity), 0.0f);
 
 	//update position
 	_ParticleBuffer_RW[id.x].position = _ParticleBuffer_RW[id.x].predictedPos;

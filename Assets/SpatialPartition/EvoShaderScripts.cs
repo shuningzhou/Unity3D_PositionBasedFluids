@@ -58,16 +58,16 @@ public class EvoShaderScripts : MonoBehaviour {
     //for debugging
   
     //-------------------animation parameters----------------
-    private const int SOLVER_ITERATION = 2;
+    private const int SOLVER_ITERATION = 4;
     private Vector3 G = new Vector3(0, -9.8f, 0);
 
     private float REST_DENSITY = 1000;//998.29F;
-    private static int particleAmount = 65536; //65536;//79872;//65536; //98304 //114688
+    private static int particleAmount = 79872; //65536;//79872;//65536; //98304 //114688
     private static int sideLength = 48;
     private int TOTAL_PARTICLES = particleAmount;
     private float TIME_STEP = 0.016f;
     private float KRAD;
-    private float RELXATION_PARAM = 200;
+    private float RELXATION_PARAM = 160;
 
     private float Poly6Constant;
     private float GradSpikyConstant;
@@ -543,7 +543,7 @@ public class EvoShaderScripts : MonoBehaviour {
     void KernelConstantInit()
     {
         cs_Initializer.SetFloat("mass", particleMass);
-        cs_Initializer.SetVector("coordCenter", this.transform.position);
+        cs_Initializer.SetVector("coordCenter", this.transform.position + Vector3.up * 1);
         cs_Initializer.SetInt("sideLength", sideLength);
         cs_Initializer.SetFloat("step", particleSize);
 
@@ -654,17 +654,9 @@ public class EvoShaderScripts : MonoBehaviour {
     }
     */
 
-
-    //void FixedUpdate()
-    void Update()
+    void KeyHandler()
     {
-        if (Input.GetKeyUp(KeyCode.Space))
-        {
-            executionLock = !executionLock;
-            Debug.Log("Locker: " + executionLock);
-        }
-
-        if (Input.GetKey(KeyCode.A))
+        if (Input.GetKey(KeyCode.Q))
         {
             if (tempBBExtent.x > 0)
             {
@@ -675,7 +667,7 @@ public class EvoShaderScripts : MonoBehaviour {
             }
         }
 
-        if (Input.GetKey(KeyCode.D))
+        if (Input.GetKey(KeyCode.E))
         {
             if (tempBBExtent.x < boundBoxExtent.x)
             {
@@ -686,8 +678,28 @@ public class EvoShaderScripts : MonoBehaviour {
             }
         }
 
+        if (Input.GetKeyUp(KeyCode.G))
+        {
+            G = -G;
+            cs_TestGrav.SetVector("_gravity", G);
+        }
+    }
+
+    //void FixedUpdate()
+    void Update()
+    {
+        if (Input.GetKeyUp(KeyCode.Space))
+        {
+            executionLock = !executionLock;
+            Debug.Log("Locker: " + executionLock);
+        }
+
         if (executionLock == false)
         {
+            KeyHandler();
+           
+
+
             cs_TestGrav.SetFloat("_timestep", Time.deltaTime);
 
             //Update gravity force---------------------------------------------
