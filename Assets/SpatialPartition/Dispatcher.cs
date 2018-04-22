@@ -43,15 +43,7 @@ public struct uint3
     public uint z;
 }
 
-//param set 1
-//KRAD = 0.1;
-//solver iter = 4;
-//density 6578;
-//viscosity 0.16;
-//vort 0.00012;
-//s_corr 0.00012;
-
-public class EvoShaderScripts : MonoBehaviour {
+public class Dispatcher : MonoBehaviour {
 
     bool executionLock = true;
 
@@ -62,12 +54,11 @@ public class EvoShaderScripts : MonoBehaviour {
     private Vector3 G = new Vector3(0, -9.8f, 0);
 
     private float REST_DENSITY = 1000;//998.29F;
-    private static int particleAmount = 79872; //65536;//79872;//65536; //98304 //114688
+    private static int particleAmount = 65536; //65536;//79872;//65536; //98304 //114688
     private static int sideLength = 48;
     private int TOTAL_PARTICLES = particleAmount;
-    private float TIME_STEP = 0.016f;
     private float KRAD;
-    private float RELXATION_PARAM = 160;
+    private float RELXATION_PARAM = 200;
 
     private float Poly6Constant;
     private float GradSpikyConstant;
@@ -123,7 +114,7 @@ public class EvoShaderScripts : MonoBehaviour {
 
     // Compute shader used to initialize the Particles.
     public ComputeShader cs_Initializer;
-    public ComputeShader cs_TestGrav;
+    public ComputeShader cs_Update;
     public ComputeShader cs_Lambda;
     public ComputeShader cs_NNS;
 
@@ -153,7 +144,6 @@ public class EvoShaderScripts : MonoBehaviour {
     public Vector3 boundBoxExtent;
     Vector3 tempBBCenter;
     Vector3 tempBBExtent;
-
 
     //rendering---------------------------------------
     private Material m_depthMaterial;
@@ -261,252 +251,6 @@ public class EvoShaderScripts : MonoBehaviour {
         m_thicknessMaterial = new Material(Shader.Find(shader_thic));
         m_thicknessMaterial.hideFlags = HideFlags.HideAndDontSave;
 
-#if false
-        newMat = Resources.Load("GPUInstancing", typeof(Material)) as Material;
-        foreach (CSParticle p in particles)
-        {
-            //Debug.Log("Mass: " + p.fMass);
-            //Debug.Log("Pos: " + p.v3Position);
-            //Debug.Log("Mass: " + p.fMass);
-
-            goLists[p.id] = GameObject.CreatePrimitive(PrimitiveType.Cube);
-
-            goLists[p.id].transform.position = p.v3Position;
-            goLists[p.id].hideFlags = HideFlags.HideAndDontSave;
-            //GPU Instancing
-            goLists[p.id].GetComponent<Renderer>().material = newMat;
-            goLists[p.id].transform.localScale = new Vector3(particleSize, particleSize, particleSize);
-        }
-#endif
-        //nns test
-#if false
-
-        //testing only
-        uint[] counter = new uint[64];
-        uint[] prefixSum = new uint[64];
-
-        uint2[] gridIdx = new uint2[256];
-
-        uint[] sortedparticle = new uint[TOTAL_PARTICLES];
-        //-----------------
-
-        
-        cs_NNS.SetBuffer(i_cs_UpdateGridID, "_ParticleBuffer_R", sb_particles);
-        cs_NNS.SetBuffer(i_cs_UpdateGridID, "_ParticleGridIdx_W", sb_particleGridIdx);
-        cs_NNS.SetBuffer(i_cs_UpdateGridID, "_GridCounter_W", sb_gridCounter);
-
-        cs_NNS.SetBuffer(i_cs_PrefixSumID, "_GridCounter_W", sb_gridCounter);
-        cs_NNS.SetBuffer(i_cs_PrefixSumID, "_GridPrefixSum_W", sb_gridPrefixSum);
-
-        cs_NNS.SetBuffer(i_cs_SortPtlID, "_ParticleGridIdx_W", sb_particleGridIdx);
-        cs_NNS.SetBuffer(i_cs_SortPtlID, "_GridPrefixSum_W", sb_gridPrefixSum);
-        cs_NNS.SetBuffer(i_cs_SortPtlID, "_ParticleBuffer_R", sb_particles);
-        cs_NNS.SetBuffer(i_cs_SortPtlID, "_SortedParticleBuffer_W", sb_sortedParticles);
-
-        cs_NNS.Dispatch(i_cs_UpdateGridID, iWarpCount, 1, 1);     //dispatched per particle
-        cs_NNS.Dispatch(i_cs_PrefixSumID, iCellWarpCount, 1, 1);  //dispatched per cell
-        cs_NNS.Dispatch(i_cs_SortPtlID, iWarpCount, 1, 1);        //dispatched per particle
-
-        sb_gridCounter.GetData(counter);
-        sb_gridPrefixSum.GetData(prefixSum);
-        sb_sortedParticles.GetData(sortedparticle);
-        sb_particleGridIdx.GetData(gridIdx);
-          
-        //uint[] ids = new uint[125];
-
-        //InitUintArray(ids);
-
-       //Debug.Log("output length: " + sortedparticle.Length);
-       //foreach (CSParticle p in sortedparticle)
-       //for (int i = 0; i < sortedparticle.Length; i++)
-       //{
-           //Debug.Log(p.id);
-           //Debug.Log(sortedparticle[i].id);
-           //ids[sortedparticle[i].id]++;
-       //}
-
-       /*
-       for(int i = 0; i < ids.Length; i++)
-       {
-           if (ids[i] != 1)
-           {
-               Debug.Log("count: " + ids[i] + "  " + "id: " + i);
-           }
-       }
-       */
-
-       Debug.Log("aaaaaaaaaaaaaaaaaaaaaaaa");
-       
-       for (int i = 0; i < gridIdx.Length; i++)
-       {
-           Debug.Log("id: " + i + "  " + gridIdx[i].x + "  " + gridIdx[i].y);
-       }
-
-       Debug.Log("aaaaaaaaaaaaaaaaaaaaaaaa");
-
-       foreach (uint i in counter)
-       {
-           Debug.Log(i);
-       }
-       
-       Debug.Log("aaaaaaaaaaaaaaaaaaaaaaaa");
-       for (int i = 0; i < prefixSum.Length; i++)
-       {
-           Debug.Log("cell Id: " + i + "  " + "sum: " + prefixSum[i]);
-       }
-       Debug.Log("aaaaaaaaaaaaaaaaaaaaaaaa");
-
-
-        //NNS testing code
-        /*
-        foreach (CSParticle p in sortedparticle)
-        {
-            Vector3 pos = p.v3Position;
-            goLists[p.id].transform.position = new Vector3(pos.x, pos.y, pos.z - 1 * gridIdx[p.id].x);
-        }
-        */
-        
-       uint testCell = gridIdx[255].x;
-        Vector3 testPos = particles[255].v3Position;
-        Vector3 h = new Vector3(KRAD, KRAD, KRAD);
-
-        Vector3 BBmin = testPos - h;
-        Vector3 BBmax = testPos + h;
-
-        Debug.Log("query cell index: " + testCell);
-
-        uint3 BBCellMin = testCellIdGen(BBmin);
-        uint3 BBCellMax = testCellIdGen(BBmax);
-
-        List<int> n = new List<int>();
-
-        for (int i = (int)BBCellMin.x; i <= (int)BBCellMax.x; i++)
-        {
-            for (int j = (int)BBCellMin.y; j <= (int)BBCellMax.y; j++)
-            {
-                for (int k = (int)BBCellMin.z; k <= (int)BBCellMax.z; k++)
-                {
-                    if (i >= 0 && i < 4 && j >= 0 && j < 4 && k >= 0 && k < 4)
-                    {
-                       Debug.Log("neighbour cell index: " +
-                       (new Vector3(i, j, k)) + "   " + 
-                       (i + j * 4 + k * 4 * 4)
-                       );
-
-                        n.Add((i + j * 4 + k * 4 * 4));
-                    }
-                    else
-                    {
-                        Debug.Log("neighbour cell index: " +
-                        (new Vector3(i, j, k)) + "   " +
-                        (i + j * 4 + k * 4 * 4)
-                        );
-
-                    }
-                }
-            }
-        }
-
-        /*
-        for (int i = 0; i < gridIdx.Length; i++)
-        {
-            int id = (int)gridIdx[i].x;
-            if (id == 1 || id == 5 || id == 4 || id == 16 || id == 0 || id == 20 || id == 17 || id == 21)
-            //if(id == 9)
-            {
-                Vector3 pos = particles[i].v3Position;
-                goLists[i].transform.position = new Vector3(pos.x, pos.y, pos.z - 1);
-            }
-        }
-        */
-
-        /*
-        foreach (int i in n)
-        {
-            Debug.Log("neighbour cell: " + i);
-
-            foreach (CSParticle p in sortedparticle)
-            {
-                if (gridIdx[p.id].x == i)
-                {
-                    Vector3 pos = p.v3Position;
-                    goLists[p.id].transform.position = new Vector3(pos.x, pos.y, pos.z - 1);
-                }
-            }
-
-        }
-        */
-
-        
-        newMat2 = Resources.Load("MyMat2", typeof(Material)) as Material;
-        goLists[255].GetComponent<Renderer>().material = newMat2;
-        foreach (int cellId in n)
-        {
-            Debug.Log("cellId: " + cellId);
-            for (int i = (int)prefixSum[cellId]; i < (int)(prefixSum[cellId] + counter[cellId]); i++)
-            {
-                uint pid = sortedparticle[i];
-
-                Vector3 pos = goLists[pid].transform.position;
-
-                if ((pos - particles[255].v3Position).magnitude <= KRAD)
-                {
-                    goLists[pid].transform.position = new Vector3(pos.x - 2f, pos.y, pos.z);
-                }
-            }
-        }
-        
-#endif
-
-        //lambda test
-#if false
-        /*
-        cs_TestGrav.SetBuffer(i_cs_TestGravID, "_ParticleBuffer_W", sb_particles);
-        cs_TestGrav.SetBuffer(i_cs_UpdatePredPosID, "_ParticleBuffer_W", sb_particles);
-        cs_TestGrav.SetBuffer(i_cs_UpdatePV, "_ParticleBuffer_W", sb_particles);
-        */
-
-        cs_NNS.SetBuffer(i_cs_UpdateGridID, "_ParticleBuffer_R", sb_particles);
-        cs_NNS.SetBuffer(i_cs_UpdateGridID, "_ParticleGridIdx_W", sb_particleGridIdx);
-        cs_NNS.SetBuffer(i_cs_UpdateGridID, "_GridCounter_W", sb_gridCounter);
-
-        cs_NNS.SetBuffer(i_cs_PrefixSumID, "_GridCounter_W", sb_gridCounter);
-        cs_NNS.SetBuffer(i_cs_PrefixSumID, "_GridPrefixSum_W", sb_gridPrefixSum);
-
-        cs_NNS.SetBuffer(i_cs_SortPtlID, "_ParticleGridIdx_W", sb_particleGridIdx);
-        cs_NNS.SetBuffer(i_cs_SortPtlID, "_GridPrefixSum_W", sb_gridPrefixSum);
-        cs_NNS.SetBuffer(i_cs_SortPtlID, "_ParticleBuffer_R", sb_particles);
-        cs_NNS.SetBuffer(i_cs_SortPtlID, "_SortedParticleBuffer_W", sb_sortedParticles);
-
-        cs_NNS.Dispatch(i_cs_UpdateGridID, iWarpCount, 1, 1);     //dispatched per particle
-        cs_NNS.Dispatch(i_cs_PrefixSumID, iCellWarpCount, 1, 1);  //dispatched per cell
-        cs_NNS.Dispatch(i_cs_SortPtlID, iWarpCount, 1, 1);        //dispatched per particle
-
-        cs_Lambda.SetBuffer(i_cs_LambdaID, "_ParticleBuffer_RW", sb_particles);
-        cs_Lambda.SetBuffer(i_cs_LambdaID, "_ParticleGridIdx_R", sb_particleGridIdx);
-        cs_Lambda.SetBuffer(i_cs_LambdaID, "_GridCounter_R", sb_gridCounter);
-        cs_Lambda.SetBuffer(i_cs_LambdaID, "_GridPrefixSum_R", sb_gridPrefixSum);
-        cs_Lambda.SetBuffer(i_cs_LambdaID, "_SortedParticleBuffer_R", sb_sortedParticles);
-
-        cs_Lambda.SetBuffer(i_cs_PosCorrectionID, "_ParticleBuffer_RW", sb_particles);
-        cs_Lambda.SetBuffer(i_cs_PosCorrectionID, "_ParticleGridIdx_R", sb_particleGridIdx);
-        cs_Lambda.SetBuffer(i_cs_PosCorrectionID, "_GridCounter_R", sb_gridCounter);
-        cs_Lambda.SetBuffer(i_cs_PosCorrectionID, "_GridPrefixSum_R", sb_gridPrefixSum);
-        cs_Lambda.SetBuffer(i_cs_PosCorrectionID, "_SortedParticleBuffer_R", sb_sortedParticles);
-
-        cs_Lambda.Dispatch(i_cs_LambdaID, iWarpCount, 1, 1);
-        cs_Lambda.Dispatch(i_cs_PosCorrectionID, iWarpCount, 1, 1);
-
-
-
-        sb_particles.GetData(particles);
-
-        foreach (CSParticle p in particles)
-        {
-            Debug.Log("lambda: " + p.lambda);
-            Debug.Log("position correction: " + p.v3PtlPosCorrection);
-        }
-#endif
     }
 
     //nns testing use only
@@ -543,7 +287,7 @@ public class EvoShaderScripts : MonoBehaviour {
     void KernelConstantInit()
     {
         cs_Initializer.SetFloat("mass", particleMass);
-        cs_Initializer.SetVector("coordCenter", this.transform.position + Vector3.up * 1);
+        cs_Initializer.SetVector("coordCenter", this.transform.position);
         cs_Initializer.SetInt("sideLength", sideLength);
         cs_Initializer.SetFloat("step", particleSize);
 
@@ -568,14 +312,14 @@ public class EvoShaderScripts : MonoBehaviour {
         cs_Lambda.SetFloat("_GradSpikyConst", GradSpikyConstant);
         cs_Lambda.SetFloat("_ptlMass", particleMass);
 
-        //cs_TestGrav.SetFloat("_timestep", TIME_STEP);
-        cs_TestGrav.SetVector("_gravity", G);
-        cs_TestGrav.SetFloat("_KRAD", KRAD);
-        cs_TestGrav.SetInt("_numGridX", cellNumX);
-        cs_TestGrav.SetInt("_numGridY", cellNumY);
-        cs_TestGrav.SetInt("_numGridZ", cellNumZ);
-        cs_TestGrav.SetFloat("_Poly6Const", Poly6Constant);
-        cs_TestGrav.SetFloat("_GradSpikyConst", GradSpikyConstant);
+        //cs_Update.SetFloat("_timestep", TIME_STEP);
+        cs_Update.SetVector("_gravity", G);
+        cs_Update.SetFloat("_KRAD", KRAD);
+        cs_Update.SetInt("_numGridX", cellNumX);
+        cs_Update.SetInt("_numGridY", cellNumY);
+        cs_Update.SetInt("_numGridZ", cellNumZ);
+        cs_Update.SetFloat("_Poly6Const", Poly6Constant);
+        cs_Update.SetFloat("_GradSpikyConst", GradSpikyConstant);
     }
 
     void ComputeBufferInit()
@@ -611,48 +355,15 @@ public class EvoShaderScripts : MonoBehaviour {
         i_cs_ScanBucketResultID = cs_NNS.FindKernel("CSScanBucketResult");
         i_cs_ScanAddBueckResultID = cs_NNS.FindKernel("CSScanAddBucketResult");
         //Position Update--------------------------------------------
-        i_cs_UpdateExternelForceID = cs_TestGrav.FindKernel("UpdateExternelForce");
-        i_cs_UpdateVelocityID = cs_TestGrav.FindKernel("UpdateVelocity");
-        i_cs_UpdatePositionID = cs_TestGrav.FindKernel("UpdatePosition");
-        i_cs_OmegaID = cs_TestGrav.FindKernel("CalOmega");
+        i_cs_UpdateExternelForceID = cs_Update.FindKernel("UpdateExternelForce");
+        i_cs_UpdateVelocityID = cs_Update.FindKernel("UpdateVelocity");
+        i_cs_UpdatePositionID = cs_Update.FindKernel("UpdatePosition");
+        i_cs_OmegaID = cs_Update.FindKernel("CalOmega");
         //Animation--------------------------------------------------
         i_cs_LambdaID = cs_Lambda.FindKernel("CalLambda");
         i_cs_PosCorrectionID = cs_Lambda.FindKernel("CalPositionCorrection");
         i_cs_UpdatePredPosID = cs_Lambda.FindKernel("UpdatePredictedPos");
     }
-
-    /*
-    void Update()
-    {
-        if (Input.GetKeyUp(KeyCode.Space))
-        {
-            executionLock = !executionLock;
-            Debug.Log("Locker: " + executionLock);
-        }
-
-        if (Input.GetKey(KeyCode.A))
-        {
-            if (tempBBExtent.x > 0)
-            {
-                tempBBCenter.x -= 0.02f;
-                tempBBExtent.x -= 0.02f;
-                cs_Lambda.SetVector("_boundBoxCenter", tempBBCenter);
-                cs_Lambda.SetVector("_boundBoxExtent", tempBBExtent);
-            }
-        }
-
-        if (Input.GetKey(KeyCode.D))
-        {
-            if (tempBBExtent.x < boundBoxExtent.x)
-            {
-                tempBBCenter.x += 0.02f;
-                tempBBExtent.x += 0.02f;
-                cs_Lambda.SetVector("_boundBoxCenter", tempBBCenter);
-                cs_Lambda.SetVector("_boundBoxExtent", tempBBExtent);
-            }
-        }
-    }
-    */
 
     void KeyHandler()
     {
@@ -681,7 +392,19 @@ public class EvoShaderScripts : MonoBehaviour {
         if (Input.GetKeyUp(KeyCode.G))
         {
             G = -G;
-            cs_TestGrav.SetVector("_gravity", G);
+            cs_Update.SetVector("_gravity", G);
+        }
+
+        if (Input.GetKeyUp(KeyCode.H))
+        {
+            G = new Vector3(0, 0, 0);
+            cs_Update.SetVector("_gravity", G);
+        }
+
+        if (Input.GetKeyUp(KeyCode.J))
+        {
+           G = new Vector3(0, -9.8f, 0);
+            cs_Update.SetVector("_gravity", G);
         }
     }
 
@@ -698,13 +421,11 @@ public class EvoShaderScripts : MonoBehaviour {
         {
             KeyHandler();
            
-
-
-            cs_TestGrav.SetFloat("_timestep", Time.deltaTime);
+            cs_Update.SetFloat("_timestep", Time.deltaTime);
 
             //Update gravity force---------------------------------------------
-            cs_TestGrav.SetBuffer(i_cs_UpdateExternelForceID, "_ParticleBuffer_RW", sb_particles);
-            cs_TestGrav.Dispatch(i_cs_UpdateExternelForceID, iWarpCount, 1, 1);
+            cs_Update.SetBuffer(i_cs_UpdateExternelForceID, "_ParticleBuffer_RW", sb_particles);
+            cs_Update.Dispatch(i_cs_UpdateExternelForceID, iWarpCount, 1, 1);
             //-----------------------------------------------------------------
 
 
@@ -798,120 +519,29 @@ public class EvoShaderScripts : MonoBehaviour {
             }
 
             //update velocity---------------------------------------------
-            cs_TestGrav.SetBuffer(i_cs_UpdateVelocityID, "_ParticleBuffer_RW", sb_particles);
+            cs_Update.SetBuffer(i_cs_UpdateVelocityID, "_ParticleBuffer_RW", sb_particles);
 
-            cs_TestGrav.Dispatch(i_cs_UpdateVelocityID, iWarpCount, 1, 1);
+            cs_Update.Dispatch(i_cs_UpdateVelocityID, iWarpCount, 1, 1);
             //------------------------------------------------------------
 
             //calculate omega---------------------------------------------
-            cs_TestGrav.SetBuffer(i_cs_OmegaID, "_ParticleBuffer_RW", sb_particles);
-            cs_TestGrav.SetBuffer(i_cs_OmegaID, "_GridCounter_R", sb_gridCounter);
-            cs_TestGrav.SetBuffer(i_cs_OmegaID, "_GridPrefixSum_R", sb_gridPrefixSum);
-            cs_TestGrav.SetBuffer(i_cs_OmegaID, "_Omega_RW", sb_omega);
+            cs_Update.SetBuffer(i_cs_OmegaID, "_ParticleBuffer_RW", sb_particles);
+            cs_Update.SetBuffer(i_cs_OmegaID, "_GridCounter_R", sb_gridCounter);
+            cs_Update.SetBuffer(i_cs_OmegaID, "_GridPrefixSum_R", sb_gridPrefixSum);
+            cs_Update.SetBuffer(i_cs_OmegaID, "_Omega_RW", sb_omega);
 
-            cs_TestGrav.Dispatch(i_cs_OmegaID, iWarpCount, 1, 1);
+            cs_Update.Dispatch(i_cs_OmegaID, iWarpCount, 1, 1);
             //------------------------------------------------------------
 
             //update position---------------------------------------------
-            cs_TestGrav.SetBuffer(i_cs_UpdatePositionID, "_ParticleBuffer_RW", sb_particles);
-            cs_TestGrav.SetBuffer(i_cs_UpdatePositionID, "_GridCounter_R", sb_gridCounter);
-            cs_TestGrav.SetBuffer(i_cs_UpdatePositionID, "_GridPrefixSum_R", sb_gridPrefixSum);
-            cs_TestGrav.SetBuffer(i_cs_UpdatePositionID, "_Omega_RW", sb_omega);
-            cs_TestGrav.SetBuffer(i_cs_UpdatePositionID, "_Density_R", sb_density);
+            cs_Update.SetBuffer(i_cs_UpdatePositionID, "_ParticleBuffer_RW", sb_particles);
+            cs_Update.SetBuffer(i_cs_UpdatePositionID, "_GridCounter_R", sb_gridCounter);
+            cs_Update.SetBuffer(i_cs_UpdatePositionID, "_GridPrefixSum_R", sb_gridPrefixSum);
+            cs_Update.SetBuffer(i_cs_UpdatePositionID, "_Omega_RW", sb_omega);
+            cs_Update.SetBuffer(i_cs_UpdatePositionID, "_Density_R", sb_density);
 
-            cs_TestGrav.Dispatch(i_cs_UpdatePositionID, iWarpCount, 1, 1);
+            cs_Update.Dispatch(i_cs_UpdatePositionID, iWarpCount, 1, 1);
             //------------------------------------------------------------
-
-
-
-
-
-
-            //error probe
-            //sb_particles.GetData(particles);
-            //foreach (CSParticle p in particles) { Debug.Log("id: " + p.id + "  velocity: " + p.velocity); }
-            //sb_gridPrefixSum.GetData(test);
-            //for (uint i = 0; i < test.Length; i++) { Debug.Log("id: " + i + " sum: " + test[i]); }
-            //sb_poscorr.GetData(testf4);
-            //for (uint i = 0; i < testf4.Length; i++) { Debug.Log("poscorr " + testf4[i]); }
-            //sb_density.GetData(testf);
-            //for (uint i = 0; i < testf.Length; i++) { Debug.Log("density " + testf[i]); }
-            //sb_lambda.GetData(testf);
-            //for (uint i = 0; i < testf.Length; i++) { Debug.Log("lambda " + testf[i]); }
-
-
-
-#if false
-            sb_particles.GetData(particles);
-            foreach (CSParticle p in particles)
-            {
-                //Debug.Log("lambda: " + p.lambda);
-                //Debug.Log("position correction: " + p.v3PtlPosCorrection);
-                Debug.Log("omega: " + p.omega);
-                //goLists[p.id].transform.position = p.v3Position;
-            }
-#endif
-
-
-
-#if false
-            sb_particles.GetData(particles);
-            foreach (CSParticle p in particles)
-            {
-                //Debug.Log("lambda: " + p.lambda);
-                //Debug.Log("position correction: " + p.v3PtlPosCorrection);
-                Debug.Log("omega: " + p.omega);
-                //goLists[p.id].transform.position = p.v3Position;
-            }
-#endif
-#if false
-            sb_particles.GetData(particles);
-            foreach (CSParticle p in particles)
-            {
-                Debug.Log("-----------");
-                Debug.Log("ID: " + p.id);
-                Debug.Log("velocity: " + p.v3Velocity);
-                Debug.Log("Density: " + p.fdensity);
-                Debug.Log("Corr: " + p.v3PtlPosCorrection);
-                Debug.Log("Position: " + p.v3Position);
-                //goLists[p.id].transform.position = p.v3Position;
-            }
-#endif
-#if false
-            uint[] counter = new uint[64];
-            uint[] prefixSum = new uint[64];
-
-            uint2[] gridIdx = new uint2[256];
-
-            uint[] sortedparticle = new uint[TOTAL_PARTICLES];
-
-            sb_gridCounter.GetData(counter);
-            sb_gridPrefixSum.GetData(prefixSum);
-            sb_sortedParticles.GetData(sortedparticle);
-            sb_particleGridIdx.GetData(gridIdx);
-
-            Debug.Log("aaaaaaaaaaaaaaaaaaaaaaaa");
-
-            for (int i = 0; i < gridIdx.Length; i++)
-            {
-                Debug.Log("id: " + i + "  " + gridIdx[i].x + "  " + gridIdx[i].y);
-            }
-
-            Debug.Log("aaaaaaaaaaaaaaaaaaaaaaaa");
-
-            for (int i = 0; i < counter.Length; i++)
-            {
-                Debug.Log("id: " + i + "  " + "counter: " + counter[i]);
-            }
-
-            Debug.Log("aaaaaaaaaaaaaaaaaaaaaaaa");
-            for (int i = 0; i < prefixSum.Length; i++)
-            {
-                Debug.Log("cell Id: " + i + "  " + "sum: " + prefixSum[i]);
-            }
-#endif
-
-            //ScreenPositionUpdate();
 
             //step lock
             //executionLock = true;
@@ -1101,40 +731,8 @@ public class EvoShaderScripts : MonoBehaviour {
         //Graphics.Blit(tex_tempBlurredDepthTexture, Camera.main.targetTexture, m_blurredDepthMaterial, -1);
     }
 
-    Vector3 CubeSize = new Vector3(0.05f, 0.05f, 0.05f);
     void OnDrawGizmos()
     {
-       Gizmos.DrawWireCube(gridCenter, gridSize * cellSize);
-
-        /*
-        if (executionLock == false)
-        {
-            sb_particles.GetData(particles);
-
-            Gizmos.color = Color.cyan;
-            foreach (CSParticle p in particles)
-            {
-                Gizmos.DrawWireCube(p.v3Position, CubeSize);
-            }
-        }
-        */
-        
+       Gizmos.DrawWireCube(gridCenter, gridSize * cellSize); 
     }
-
-    /*
-    void ScreenPositionUpdate()
-    {
-        //send data back to main memory
-        sb_particles.GetData(particles);
-
-        foreach (CSParticle p in particles)
-        {
-            //Debug.Log("lambda: " + p.lambda);
-            //Debug.Log("position correction: " + p.v3PtlPosCorrection);
-
-            goLists[p.id].transform.position = p.v3Position;
-        }
-    }
-    */
-
 }

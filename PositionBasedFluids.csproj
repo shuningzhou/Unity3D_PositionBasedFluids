@@ -13,11 +13,13 @@
     <TargetFrameworkIdentifier>.NETFramework</TargetFrameworkIdentifier>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <TargetFrameworkProfile>Unity Subset v3.5</TargetFrameworkProfile>
-    <CompilerResponseFile></CompilerResponseFile>
+    <CompilerResponseFile>
+    </CompilerResponseFile>
     <UnityProjectType>Game:1</UnityProjectType>
     <UnityBuildTarget>StandaloneWindows:5</UnityBuildTarget>
     <UnityVersion>5.6.3p2</UnityVersion>
-    <RootNamespace></RootNamespace>
+    <RootNamespace>
+    </RootNamespace>
     <LangVersion>4</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -80,15 +82,15 @@
   <ItemGroup>
     <Compile Include="Assets\Controller.cs" />
     <Compile Include="Assets\NNSTest\NNSTest.cs" />
-    <Compile Include="Assets\SpatialPartition\EvoShaderScripts.cs" />
+    <Compile Include="Assets\SpatialPartition\Dispatcher.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\NNSTest\NNSTestInit.compute" />
     <None Include="Assets\ShaderTest\NewSurfaceShader.shader" />
     <None Include="Assets\ShaderTest\TestSpecular.shader" />
-    <None Include="Assets\Shaders\ComputeShaders\Gravity.compute" />
+    <None Include="Assets\Shaders\ComputeShaders\Update.compute" />
     <None Include="Assets\Shaders\ComputeShaders\Imcompressibility.compute" />
-    <None Include="Assets\Shaders\ComputeShaders\MyCS.compute" />
+    <None Include="Assets\Shaders\ComputeShaders\Init.compute" />
     <None Include="Assets\Shaders\ComputeShaders\NNS.compute" />
     <None Include="Assets\Shaders\SurfaceShaders\PointSprite.shader" />
     <None Include="Assets\Shaders\SurfaceShaders\SphereBlurredDepth.shader" />

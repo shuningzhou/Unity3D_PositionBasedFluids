@@ -10,7 +10,7 @@ Shader "PBF/PointSprite" {
 	Properties {
 		_mainTex("Texture", 2D) = "white" {}
 		_ptlRadius("particle radius", Range(0.1, 1)) = 0.1
-		_color("color", Color) = (0.5, 0.5, 0.5, 1)
+		_color("color", Color) = (0.2, 0.4, 0.6, 1)
 	}
 	SubShader{
 		Pass{

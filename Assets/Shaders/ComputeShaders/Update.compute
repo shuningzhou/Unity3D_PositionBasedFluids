@@ -218,7 +218,7 @@ void UpdatePosition(uint3 id : SV_DispatchThreadID)
 	}
 
 	_ParticleBuffer_RW[id.x].velocity = float4((_ParticleBuffer_RW[id.x].velocity.xyz
-		+ 0.005 * visoSum + _timestep * fVorticity), 0.0f);
+		+ 0.008 * visoSum + _timestep * fVorticity), 0.0f);
 
 	//update position
 	_ParticleBuffer_RW[id.x].position = _ParticleBuffer_RW[id.x].predictedPos;

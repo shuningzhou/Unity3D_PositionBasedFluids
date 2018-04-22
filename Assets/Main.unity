@@ -284,7 +284,7 @@ GameObject:
   - component: {fileID: 1229679953}
   - component: {fileID: 1229679952}
   m_Layer: 0
-  m_Name: GameObject
+  m_Name: Water
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -302,7 +302,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cs_Initializer: {fileID: 7200000, guid: e86749b01c4448a41808475d1581f1ab, type: 3}
-  cs_TestGrav: {fileID: 7200000, guid: 123d88054e65b3440b7574407384e092, type: 3}
+  cs_Update: {fileID: 7200000, guid: 123d88054e65b3440b7574407384e092, type: 3}
   cs_Lambda: {fileID: 7200000, guid: ab2668044f694fb4ba0806f60cecf831, type: 3}
   cs_NNS: {fileID: 7200000, guid: 53c79a24081652b4fb2a5090e1768eb6, type: 3}
   gridOrigin: {x: 0, y: 0, z: 0}
@@ -314,9 +314,9 @@ MonoBehaviour:
   boundBoxCenter: {x: 0, y: 0, z: 0}
   boundBoxExtent: {x: 0, y: 0, z: 0}
   tex_depthTexture: {fileID: 8400000, guid: 0d03cf612d9d23844b450e6d88a0842f, type: 2}
-  tex_blurredDepthTexture: {fileID: 8400000, guid: b6a80ee8d0400494996dbe7dcc54d4d8,
+  tex_blurredDepthTexture: {fileID: 8400000, guid: 2a1c13e19e6be124ead531debb3f9cd8,
     type: 2}
-  tex_tempBlurredDepthTexture: {fileID: 8400000, guid: 2a1c13e19e6be124ead531debb3f9cd8,
+  tex_tempBlurredDepthTexture: {fileID: 8400000, guid: b6a80ee8d0400494996dbe7dcc54d4d8,
     type: 2}
   tex_normalTexture: {fileID: 8400000, guid: 15333320d39d5a04ba8fde9936af89cf, type: 2}
   tex_thicknessTexture: {fileID: 8400000, guid: 7a11f158e3323514fa883b0c0ca4cdf9,
@@ -325,16 +325,16 @@ MonoBehaviour:
   m_particleRadius: 0.1
   m_blurScale: 1
   m_blurRadius: 8
-  m_blurDepthFalloff: 500
+  m_blurDepthFalloff: 400
   m_filterRadius: 9
-  m_surfaceColor: {x: 0.4, y: 0.45, z: 0.46, w: 1}
-  m_refractionIndex: 1.33
-  m_shiness: 400
+  m_surfaceColor: {x: 0.5, y: 0.5, z: 0.5, w: 1}
+  m_refractionIndex: 1.5
+  m_shiness: 300
   r_isBlur: 1
   r_isNormal: 1
   r_isSurfaceShading: 1
   r_isTransparent: 1
-  r_isRaw: 1
+  r_isRaw: 0
 --- !u!4 &1229679953
 Transform:
   m_ObjectHideFlags: 0
